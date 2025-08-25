@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng giá Crypto Futures - So sánh với High/Low</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .dashboard-container {
+            width: 95%;
+            max-width: 1800px;
+            background-color: #1e1e1e;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+            text-align: center;
+        }
+        h1 {
+            color: #f0b90b;
+            margin-bottom: 10px;
+        }
+        .note {
+            font-size: 0.9em;
+            color: #aaa;
+            margin-bottom: 15px;
+        }
+        .controls-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        .timeframe-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .timeframe-btn {
+            background-color: #333;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .timeframe-btn:hover {
+            background-color: #444;
+        }
+        .timeframe-btn.active {
+            background-color: #f0b90b;
+            color: #121212;
+            font-weight: bold;
+            border-color: #f0b90b;
+        }
+        .countdown-container {
+            font-size: 0.9em;
+            color: #f0b90b;
+        }
+        #countdown-timer {
+            font-weight: bold;
+            background-color: #2a2a2a;
+            padding: 8px 12px;
+            border-radius: 6px;
+            min-width: 80px;
+            display: inline-block;
+            border: 1px solid #555;
+        }
+        .coin-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            text-align: right;
+        }
+        .coin-item {
+            display: grid;
+            grid-template-columns: 1.4fr 0.6fr 1fr 0.9fr 0.9fr 1.1fr 0.7fr repeat(7, 0.9fr) 0.8fr;
+            gap: 12px;
+            align-items: center;
+            padding: 15px 10px;
+            border-bottom: 1px solid #333;
+            transition: background-color 0.3s ease;
+        }
+        .coin-item:last-child {
+            border-bottom: none;
+        }
+        .coin-item:hover {
+            background-color: #2a2a2a;
+        }
+        .header-row {
+            font-weight: bold;
+            color: #f0b90b;
+            border-bottom: 2px solid #555;
+            font-size: 0.85em;
+        }
+        .coin-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            text-align: left;
+        }
+        .price-up { color: #4CAF50; }
+        .price-down { color: #F44336; }
+        .price-unchanged { color: #e0e0e0; }
+        .highlight { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <h1>Bảng Theo Dõi Crypto Futures (USDT-M)</h1>
+    <p class="note">Giá hiện tại được so sánh với mức Cao/Thấp của nến trước đó. Dữ liệu từ Binance Futures.</p>
+
+    <div class="controls-container">
+        <div class="timeframe-selector">
+            <button class="timeframe-btn" data-interval="5m">5 phút</button>
+            <button class="timeframe-btn" data-interval="30m">30 phút</button>
+            <button class="timeframe-btn" data-interval="1h">1 giờ</button>
+            <button class="timeframe-btn" data-interval="4h">4 giờ</button>
+            <button class="timeframe-btn active" data-interval="1d">1 ngày</button>
+        </div>
+        <div class="countdown-container">
+            <span>Đóng nến sau: </span>
+            <span id="countdown-timer">--:--:--</span>
+        </div>
+    </div>
+
+    <ul id="coin-list" class="coin-list">
+        <li class="coin-item header-row">
+            <span style="text-align: left;">Thời gian</span>
+            <span style="text-align: left;">Coin</span>
+            <span>Giá hiện tại</span>
+            <span id="header-high">High (Nến trước)</span>
+            <span id="header-low">Low (Nến trước)</span>
+            <span>Entry (Gần nhất)</span>
+            <span>Tiến trình (%)</span>
+            <span>SL</span>
+            <span>TP1</span>
+            <span>TP2</span>
+            <span>TP3</span>
+            <span>TP4</span>
+            <span>TP5</span>
+            <span>TP6</span>
+            <span>Trạng thái</span>
+        </li>
+        </ul>
+</div>
+
+<script>
+    const symbols = [
+        'btcusdt', 'ethusdt', 'bnbusdt', 'solusdt', 'linkusdt', 'opusdt', 'suiusdt',
+        'injusdt', 'arbusdt', 'avaxusdt', 'nearusdt', 'dogeusdt', 'runeusdt',
+        'aptusdt', 'ftmusdt', 'seiusdt', 'maticusdt', 'pendleusdt', 'ordiusdt',
+        '1000pepeusdt', 'tonusdt', 'xrpusdt', 'rndrusdt', 'ltcusdt', 'tiaausdt',
+        'aaveusdt', 'bandusdt', 'degousdt', 'memeusdt'
+    ];
+    
+    const wsUrl = `wss://fstream.binance.com/ws/${symbols.map(s => `${s}@trade`).join('/')}`;
+    const coinData = {};
+    let currentInterval = '1d';
+    let ws;
+    let countdownIntervalId = null; 
+    let isDataLoading = false;
+
+    async function fetchHistoricalData(symbol, interval) {
+        const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=2`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data.length < 2) {
+                console.warn(`Không đủ dữ liệu nến cho ${symbol} ở khung ${interval}.`);
+                return { high: 0, low: 0 };
+            }
+            const previousCandle = data[0];
+            const highPrice = parseFloat(previousCandle[2]);
+            const lowPrice = parseFloat(previousCandle[3]);
+            return { high: highPrice, low: lowPrice };
+        } catch (error) {
+            console.error(`Lỗi khi lấy dữ liệu lịch sử cho ${symbol}:`, error);
+            return { high: 0, low: 0 };
+        }
+    }
+
+    function renderList() {
+        const coinListElement = document.getElementById('coin-list');
+        while (coinListElement.children.length > 1) {
+            coinListElement.removeChild(coinListElement.lastChild);
+        }
+
+        const coinsArray = Object.values(coinData);
+        if (coinsArray.length === 0) return;
+
+        const btcCoin = coinsArray.find(coin => coin.symbol.toLowerCase() === 'btc');
+        let otherCoins = coinsArray.filter(coin => coin.symbol.toLowerCase() !== 'btc');
+        otherCoins.sort((a, b) => {
+            if (a.entryReached && !b.entryReached) return -1;
+            if (!a.entryReached && b.entryReached) return 1;
+            return b.percentage - a.percentage;
+        });
+
+        const sortedCoins = [];
+        if (btcCoin) sortedCoins.push(btcCoin);
+        const finalCoinList = sortedCoins.concat(otherCoins);
+
+        finalCoinList.forEach(coin => {
+            if (!coin.high) return;
+            const listItem = document.createElement('li');
+            listItem.className = 'coin-item';
+            
+            const formatPrice = (price) => {
+                if (price === 0) return '...';
+                if (price < 1) return price.toFixed(6);
+                if (price < 100) return price.toFixed(4);
+                return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            };
+
+            const formatTime = (date) => {
+                if (!date) return '...';
+                return date.toLocaleString('vi-VN', {
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: false
+                }).replace(',', '');
+            };
+
+            const entryLabel = coin.entryPrice > 0 
+                ? (coin.proximityColorClass === 'price-up' ? 'Buy ' : (coin.proximityColorClass === 'price-down' ? 'Sell ' : '')) 
+                : '';
+            
+            listItem.innerHTML = `
+                <span style="text-align: left;">${formatTime(coin.lastUpdateTime)}</span>
+                <span class="coin-name">${coin.symbol.toUpperCase()}</span>
+                <span class="highlight ${coin.priceDirection}">${formatPrice(coin.currentPrice)}</span>
+                <span>${formatPrice(coin.high)}</span>
+                <span>${formatPrice(coin.low)}</span>
+                <span class="highlight ${coin.proximityColorClass}">${entryLabel}${formatPrice(coin.entryPrice)}</span>
+                <span class="highlight ${coin.proximityColorClass}">${coin.percentage.toFixed(2)}%</span>
+                <span>${formatPrice(coin.slPrice)}</span>
+                <span>${formatPrice(coin.tp1Price)}</span>
+                <span>${formatPrice(coin.tp2Price)}</span>
+                <span>${formatPrice(coin.tp3Price)}</span>
+                <span>${formatPrice(coin.tp4Price)}</span>
+                <span>${formatPrice(coin.tp5Price)}</span>
+                <span>${formatPrice(coin.tp6Price)}</span>
+                <span class="highlight ${coin.statusClass}">${coin.status}</span>
+            `;
+            coinListElement.appendChild(listItem);
+        });
+    }
+
+    function resetCoinState(coin, high, low) {
+        coin.high = high;
+        coin.low = low;
+        coin.currentPrice = coin.currentPrice || 0;
+        coin.priceDirection = 'price-unchanged';
+        coin.proximityColorClass = 'price-unchanged';
+        coin.entryPrice = 0;
+        coin.percentage = 0;
+        coin.entryReached = false;
+        coin.status = 'Chờ Entry';
+        coin.statusClass = 'price-unchanged';
+        coin.lastUpdateTime = null;
+        coin.slPrice = 0;
+        coin.tp1Price = 0; coin.tp2Price = 0; coin.tp3Price = 0;
+        coin.tp4Price = 0; coin.tp5Price = 0; coin.tp6Price = 0;
+        coin.highestTpReached = 0;
+        coin.slHit = false;         
+        
+        return coin;
+    }
+
+    async function initializeData() {
+        const fetchPromises = symbols.map(async (symbol) => {
+            const historical = await fetchHistoricalData(symbol.toLowerCase(), currentInterval);
+            const ticker = symbol.replace('usdt', '').toUpperCase();
+            coinData[symbol.toLowerCase()] = {
+                symbol: ticker,
+                ...resetCoinState({}, historical.high, historical.low)
+            };
+        });
+        await Promise.all(fetchPromises);
+        renderList();
+    }
+
+    function setupWebSocket() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.close();
+        }
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => console.log('Kết nối WebSocket Futures thành công!');
+
+        ws.onmessage = (event) => {
+            if (isDataLoading) return;
+
+            const data = JSON.parse(event.data);
+            const symbol = data.s.toLowerCase();
+            const currentPrice = parseFloat(data.p);
+            const coin = coinData[symbol];
+
+            if (coin && coin.high > 0) {
+                if (currentPrice > coin.currentPrice) coin.priceDirection = 'price-up';
+                else if (currentPrice < coin.currentPrice) coin.priceDirection = 'price-down';
+                coin.currentPrice = currentPrice;
+                coin.lastUpdateTime = new Date(data.E);
+
+                if (!coin.entryReached) {
+                    coin.status = 'Chờ Entry';
+                    coin.statusClass = 'price-unchanged';
+                    
+                    const totalDistance = coin.high - coin.low;
+                    if (totalDistance > 0) {
+                        const midpoint = (coin.high + coin.low) / 2;
+                        let progressPercentage = 0;
+
+                        if (currentPrice >= midpoint) {
+                            progressPercentage = ((currentPrice - coin.low) / totalDistance) * 100;
+                        } else {
+                            progressPercentage = ((coin.high - currentPrice) / totalDistance) * 100;
+                        }
+                        coin.percentage = Math.max(0, Math.min(100, progressPercentage));
+                    } else {
+                        coin.percentage = 0;
+                    }
+                    
+                    let entryTriggered = false;
+                    let entryType = '';
+
+                    if (currentPrice >= coin.high) {
+                        entryTriggered = true;
+                        entryType = 'buy';
+                        coin.entryPrice = coin.high; 
+                    } 
+                    else if (currentPrice <= coin.low) {
+                        entryTriggered = true;
+                        entryType = 'sell';
+                        coin.entryPrice = coin.low;
+                    }
+
+                    if (entryTriggered) {
+                        coin.entryReached = true;
+                        coin.percentage = 100;
+                        
+                        if (entryType === 'buy') {
+                            coin.proximityColorClass = 'price-up';
+                            coin.slPrice = coin.entryPrice * (1 - 0.0951);
+                            coin.tp1Price = coin.entryPrice * 1.004;
+                            coin.tp2Price = coin.entryPrice * 1.008;
+                            coin.tp3Price = coin.entryPrice * 1.012;
+                            coin.tp4Price = coin.entryPrice * 1.016;
+                            coin.tp5Price = coin.entryPrice * 1.020;
+                            coin.tp6Price = coin.entryPrice * 1.024;
+                        } else {
+                            coin.proximityColorClass = 'price-down';
+                            coin.slPrice = coin.entryPrice * (1 + 0.0951);
+                            coin.tp1Price = coin.entryPrice * 0.996;
+                            coin.tp2Price = coin.entryPrice * 0.992;
+                            coin.tp3Price = coin.entryPrice * 0.988;
+                            coin.tp4Price = coin.entryPrice * 0.984;
+                            coin.tp5Price = coin.entryPrice * 0.980;
+                            coin.tp6Price = coin.entryPrice * 0.976;
+                        }
+                    } else {
+                        const diffHigh = Math.abs(currentPrice - coin.high);
+                        const diffLow = Math.abs(currentPrice - coin.low);
+                        coin.entryPrice = (diffHigh < diffLow) ? coin.high : coin.low;
+                        coin.proximityColorClass = (coin.entryPrice === coin.high) ? 'price-up' : 'price-down';
+                    }
+                }
+
+                if (coin.entryReached) {
+                    if (coin.slHit) {
+                        renderList();
+                        return;
+                    }
+                    
+                    let currentLevel = 0;
+                    const isBuyOrder = coin.proximityColorClass === 'price-up';
+
+                    if (isBuyOrder) {
+                        if      (currentPrice <= coin.slPrice)  currentLevel = -1;
+                        else if (currentPrice >= coin.tp6Price) currentLevel = 6;
+                        else if (currentPrice >= coin.tp5Price) currentLevel = 5;
+                        else if (currentPrice >= coin.tp4Price) currentLevel = 4;
+                        else if (currentPrice >= coin.tp3Price) currentLevel = 3;
+                        else if (currentPrice >= coin.tp2Price) currentLevel = 2;
+                        else if (currentPrice >= coin.tp1Price) currentLevel = 1;
+                    } else {
+                        if      (currentPrice >= coin.slPrice)  currentLevel = -1;
+                        else if (currentPrice <= coin.tp6Price) currentLevel = 6;
+                        else if (currentPrice <= coin.tp5Price) currentLevel = 5;
+                        else if (currentPrice <= coin.tp4Price) currentLevel = 4;
+                        else if (currentPrice <= coin.tp3Price) currentLevel = 3;
+                        else if (currentPrice <= coin.tp2Price) currentLevel = 2;
+                        else if (currentPrice <= coin.tp1Price) currentLevel = 1;
+                    }
+
+                    if (currentLevel === -1) {
+                        coin.slHit = true;
+                    } else if (currentLevel > coin.highestTpReached) {
+                        coin.highestTpReached = currentLevel;
+                    }
+                    
+                    if (coin.slHit) {
+                        coin.statusClass = 'price-down';
+                        if (coin.highestTpReached > 0) {
+                            coin.status = `TP${coin.highestTpReached} + SL`;
+                        } else {
+                            coin.status = 'SL';
+                        }
+                    } else if (coin.highestTpReached > 0) {
+                        coin.status = `TP${coin.highestTpReached}`;
+                        coin.statusClass = 'price-up';
+                    } else {
+                        coin.status = 'Khớp Entry';
+                        coin.statusClass = 'price-unchanged';
+                    }
+                }
+                
+                renderList();
+            }
+        };
+
+        ws.onclose = () => console.log('Kết nối WebSocket đã đóng.');
+        ws.onerror = (error) => console.error('Lỗi WebSocket:', error);
+    }
+
+    function updateCountdown() {
+        if (countdownIntervalId) clearInterval(countdownIntervalId);
+        const timerElement = document.getElementById('countdown-timer');
+
+        const getNextCandleCloseTime = () => {
+            const now = new Date();
+            let multiplier = 0;
+            // --- THÊM LOGIC XỬ LÝ 5 PHÚT ---
+            switch(currentInterval) {
+                case '5m':  multiplier = 5 * 60 * 1000; break;
+                case '30m': multiplier = 30 * 60 * 1000; break;
+                case '1h':  multiplier = 60 * 60 * 1000; break;
+                case '4h':  multiplier = 4 * 60 * 60 * 1000; break;
+                case '1d':  multiplier = 24 * 60 * 60 * 1000; break;
+            }
+            if (currentInterval === '1d') {
+                const nextClose = new Date(now);
+                nextClose.setUTCHours(24, 0, 0, 0);
+                return nextClose;
+            }
+            const nextClose = new Date(Math.ceil(now.getTime() / multiplier) * multiplier);
+            return nextClose;
+        };
+
+        countdownIntervalId = setInterval(() => {
+            const distance = getNextCandleCloseTime() - new Date();
+            
+            if (distance <= 1000) { 
+                timerElement.textContent = "00:00:00";
+                clearInterval(countdownIntervalId);
+                setTimeout(() => {
+                    initializeData();
+                    updateCountdown();
+                }, 1500);
+                return;
+            }
+
+            const hours = Math.floor(distance / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            timerElement.textContent = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }, 1000);
+    }
+
+    document.querySelectorAll('.timeframe-btn').forEach(button => {
+        button.addEventListener('click', async () => {
+            const newInterval = button.dataset.interval;
+            if (newInterval === currentInterval) return;
+
+            isDataLoading = true;
+
+            document.querySelector('.timeframe-btn.active').classList.remove('active');
+            button.classList.add('active');
+            currentInterval = newInterval;
+            
+            const coinListElement = document.getElementById('coin-list');
+            while (coinListElement.children.length > 1) {
+                coinListElement.removeChild(coinListElement.lastChild);
+            }
+            
+            await initializeData();
+            updateCountdown(); 
+            
+            isDataLoading = false;
+        });
+    });
+
+    (async () => {
+        await initializeData();
+        setupWebSocket();
+        updateCountdown(); 
+    })();
+
+</script>
+
+</body>
+</html>
